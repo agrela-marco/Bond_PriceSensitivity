@@ -1,0 +1,540 @@
+#Inputting the datasets
+first_decadedata = pd.read_csv('1stdecade.csv')
+second_decadedata = pd.read_csv('2nddecade.csv')
+fama_french = pd.read_csv('FF_data.csv', skiprows = 3)
+FFMom_data = pd.read_csv('Momentum_Factor.csv', skiprows=14)
+print(f'The first decade data set is:\n{first_decadedata}')
+print(f'The second decade data set is:\n{second_decadedata}')
+
+# Concatenate the two DataFrames (stack them vertically)
+cc_data = pd.concat([first_decadedata, second_decadedata], ignore_index=True)
+
+#Drop unnecessary columms
+Q3T1 = cc_data
+Q3Drop_Columns = ['PRC', 'sprtrn', 'CUSIP']
+Q3T1.drop(columns = Q3Drop_Columns, inplace = True)
+Q3T1.rename(columns={'vwretd': 'VWReturn'}, inplace = True)
+Q3T1.rename(columns={'RET': 'Return'}, inplace = True)
+
+# Convert cc_data['date'] to datetime format
+Q3T1['Date'] = pd.to_datetime(Q3T1['date'],format='%Y%m%d')
+Q3T1 = Q3T1.drop(columns = ['date']) #Drop old date column
+
+# Filter cc_data for the period between January 2003 and December 2015
+Q3T1= Q3T1[(Q3T1['Date'] >= '2003-01-01') & (Q3T1['Date'] <= '2015-12-31')]
+
+#Formatting the date column on fama french data set
+fama_french.rename(columns={fama_french.columns[0]: 'Date'}, inplace=True)
+fama_french = fama_french[fama_french['Date'].astype(str).str.isdigit()]
+fama_french['Date'] = pd.to_datetime(fama_french['Date'].astype(str), format='%Y%m')
+fama_french = fama_french[(fama_french['Date'] >= '2003-01-01') & (fama_french['Date'] <= '2015-12-31')]
+#Using end of months to be able to merge it
+fama_french['Date'] = fama_french['Date'] + pd.offsets.MonthEnd(-1)
+Q3T1_merged = pd.merge(Q3T1, fama_french, on= 'Date', how = "inner")
+
+# Clean CRSP data: Remove invalid SIC codes and missing SIC codes
+Q3T1['SICCD'] = pd.to_numeric(Q3T1['SICCD'], errors='coerce')
+Q3T1 = Q3T1[~Q3T1['SICCD'].isna()] #Used the ~ to only appear collumns that aren't within these ranges
+Q3T1 = Q3T1[~Q3T1['SICCD'].between(100, 999)]
+Q3T1 = Q3T1[~Q3T1['SICCD'].between(9100, 9729)] 
+Q3T1 = Q3T1[~Q3T1['SICCD'].between(9900, 9999)]
+
+# Classify industries
+def classify_industry(sic_code):
+    if 1000 <= sic_code <= 1499:
+        return 'Mining'
+    elif 1500 <= sic_code <= 1799:
+        return 'Construction'
+    elif 2000 <= sic_code <= 3999:
+        return 'Manufacturing'
+    elif 4000 <= sic_code <= 4999:
+        return 'Transportation, Communications, and Utilities'
+    elif 5000 <= sic_code <= 5199:
+        return 'Wholesale Trade'
+    elif 5200 <= sic_code <= 5999:
+        return 'Retail Trade'
+    elif 6000 <= sic_code <= 6799:
+        return 'Finance, Insurance, and Real Estate'
+    elif 7000 <= sic_code <= 8999:
+        return 'Services'
+    else:
+        return 'Non-classifiable'
+
+#Building the column Industry
+Q3T1['Industry'] = Q3T1['SICCD'].apply(classify_industry)
+Q3T1 = Q3T1.dropna(subset=['Return'])
+Q3T1.head()
+
+fama_french['Date'] = fama_french['Date'] + pd.offsets.MonthEnd(-1) #Used end of months as most of the data is at the end and there are months with different days
+Q3T1_merged = pd.merge(Q3T1, fama_french, on='Date', how = "inner") #Merge both datasets
+Q3T1_merged
+
+Q3T1_merged.dtypes
+#Turning RF to a float variable to be able to do calculations
+Q3T1_merged['RF'] = pd.to_numeric(Q3T1_merged['RF'], errors='coerce').dropna()
+Q3T1_merged['Mkt-RF'] = pd.to_numeric(Q3T1_merged['Mkt-RF'], errors='coerce')
+Q3T1_merged['SMB'] = pd.to_numeric(Q3T1_merged['SMB'], errors='coerce')
+Q3T1_merged['HML'] = pd.to_numeric(Q3T1_merged['HML'], errors='coerce')
+Q3T1_merged['Return'] = pd.to_numeric(Q3T1_merged['Return'], errors='coerce').dropna()
+Q3T1_merged
+#Building a market return that calculates the mean return per industry
+market_return = Q3T1_merged.groupby('Date')['VWReturn'].mean().reset_index()
+#Defining the ind_port an groupinmg the merged dataset by Industry and Date, computing mean returns
+ind_portf = Q3T1_merged.groupby(['Industry', 'Date'])['Return'].mean().reset_index()
+#Merge the previous built portfolio dataframe with the market returns df
+ind_portf = pd.merge(ind_portf, market_return, on='Date', how='left')
+ind_portf = ind_portf.dropna()
+ind_portf['Date'] = pd.to_datetime(ind_portf['Date'])
+ind_portf.tail(100)
+
+#Define a function to compute beta
+def calculate_betas(ind_portf):
+    beta = {}
+    for industry in ind_portf['Industry'].unique():
+        temp_data = ind_portf[ind_portf['Industry'] == industry]
+        if len(temp_data) > 10:
+            X = sm.add_constant(temp_data['VWReturn'])  # Market return
+            y = temp_data['Return']  # Industry return
+            model = sm.OLS(y, X).fit()
+            beta[industry] = model.params['VWReturn']
+        else:
+            beta[industry] = None  # Not enough data to calculate beta
+    return beta
+
+#Building a portfolio performance table and grouping by Industries and computing means
+portfolio_perform = ind_portf.groupby('Industry')['Return'].agg(
+    AVGReturn='mean',
+    Volatility='std',
+).reset_index()
+
+# Convert returns to decimal form
+Q3T1_merged['Return'] = Q3T1_merged['Return'] / 100
+Q3T1_merged['RF'] = Q3T1_merged['RF'] / 100
+
+# Calculate Beta using the function
+beta = calculate_betas(ind_portf)
+
+# Map Beta values, handling missing values
+portfolio_perform['Beta'] = portfolio_perform['Industry'].map(beta).fillna(0) #Fill NaN with 0
+
+# Calculate Sharpe Ratio
+avg_rf = Q3T1_merged['RF'].mean()
+portfolio_perform['Sharpe Ratios'] = (portfolio_perform['AVGReturn'] - avg_rf) / portfolio_perform['Volatility']
+
+# Calculate average number of firms
+avg_firms = Q3T1_merged.groupby(['Industry', 'Date'])['PERMCO'].count().groupby('Industry').mean()
+portfolio_perform['AVG Firms'] = portfolio_perform['Industry'].map(avg_firms)
+
+print(portfolio_perform.head(10))
+
+#Drop nas
+portfolio_perform = portfolio_perform.dropna()
+
+#Defining color schemes 
+def color_light_red_green(val):
+    if val < 0:
+        color = '#FF0000'  # Adds the colour red for negative numbers
+    elif val > 0:
+        color = '#90EE90'  # Adds the colour green for positive numbers
+    else:
+        color = 'white' #Adds the colour white for white numbers
+    return f'background-color: {color}'
+
+#Mapping colors as red for negative values and green for positive values
+styled_df = portfolio_perform.style.map(color_light_red_green, subset=['AVGReturn', 'Volatility', 'Beta', 'Sharpe Ratios'])
+styled_df
+
+#Calculating the Equally weighted portfolio returns
+return_pivotEQ = ind_portf.pivot(index='Date', columns='Industry', values='Return')
+#calculates the average return for each time period
+equal_weighted_index_returns = return_pivotEQ.mean(axis=1) 
+#Calculating cumulative values
+equal_weighted_index_cum_returns = (1 + equal_weighted_index_returns).cumprod()-1
+
+#Creating a new dataframe and its columns
+equal_weighted_index_df = pd.DataFrame({
+    'Return': equal_weighted_index_returns,
+    'Cumulative_Return': equal_weighted_index_cum_returns
+})
+
+#Resetting index
+equal_weighted_index_df = equal_weighted_index_df.reset_index()
+#Turning Date into date format
+equal_weighted_index_df['Date'] = equal_weighted_index_df['Date'].dt.date
+
+#Mapping colors red as negative values and green as positive values
+equal_weighted_index_df1 = equal_weighted_index_df.style.map(color_light_red_green, subset=['Return'])
+equal_weighted_index_df1
+
+#Plot the returns over time of the different portfolios andd equally weighted portfolio
+return_pivotIND = ind_portf.pivot(index='Date', columns='Industry', values='Return')
+return_pivotIND = return_pivotIND.dropna(axis=1)
+cum_return_pivot = (1 + return_pivotIND).cumprod()
+# Get final cumulative return for each SICCD (last row of the pivot table)
+final_returns = cum_return_pivot.iloc[-1]
+
+# Sort SICCDs by final cumulative return
+top_10_industries = final_returns.sort_values(ascending=False).head(10)
+
+# Display the top 10
+print("Top 10 Industry Performers by Cumulative Return:")
+print(top_10_industries)
+
+# Plot only the top 10 SICCDs
+# Create the figure
+fig = go.Figure()
+
+# Plot each of the top 10 industries
+for col in top_10_industries.index:
+    fig.add_trace(go.Scatter(
+        x=cum_return_pivot.index,
+        y=cum_return_pivot[col],
+        mode='lines',
+        name=f"SIC {col}",
+        hovertemplate='%{y:.2f}<extra>SIC {col}</extra>'
+    ))
+
+# Plot equally weighted index
+fig.add_trace(go.Scatter(
+    x=equal_weighted_index_cum_returns.index,
+    y=equal_weighted_index_cum_returns,
+    mode='lines',
+    name='My Equally Weighted Index',
+    line=dict(color='black', dash='dash', width=2.5),
+    hovertemplate='%{y:.2f}<extra>Equally Weighted</extra>'
+))
+
+# Customize layout
+fig.update_layout(
+    title='Top 10 Industry Portfolios by Cumulative Return',
+    xaxis_title='Date',
+    yaxis_title='Cumulative Return',
+    legend_title='Legend',
+    hovermode='x unified',
+    template='plotly_white',
+    height=600,
+    width=1000
+)
+
+# Show it!
+fig.show()
+
+#Regress the industry portfolio returns against the Fama-French 3 factor models
+#Droping NAs
+regression_results = Q3T1_merged.dropna(subset=['Return', 'RF', 'Mkt-RF', 'SMB', 'HML'])
+regression_df = pd.DataFrame(regression_results)
+
+#Building a regression model
+regression_results = []
+
+for sic in Q3T1_merged['Industry'].unique():
+    industry_data = Q3T1_merged[Q3T1_merged['Industry'] == sic].copy()
+
+    # Calculate excess return
+    industry_data['Excess Return'] = industry_data['Return'] - industry_data['RF']
+
+    # Drop rows with any missing values in regression vars
+    industry_data = industry_data.dropna(subset=['Excess Return', 'Mkt-RF', 'SMB', 'HML'])
+
+    if len(industry_data) < 5:
+        continue
+
+    X = industry_data[['Mkt-RF', 'SMB', 'HML']]
+    X = sm.add_constant(X)
+    y = industry_data['Excess Return']
+
+    try:
+        model = sm.OLS(y, X).fit()
+        pval_alpha = model.pvalues.get('const', np.nan)
+
+        regression_results.append({
+            'SICCD': sic,
+            'Alpha (Intercept)': model.params.get('const', np.nan),
+            'Beta_Mkt_RF': model.params.get('Mkt-RF', np.nan),
+            'Beta_SMB': model.params.get('SMB', np.nan),
+            'Beta_HML': model.params.get('HML', np.nan),
+            'R_squared': model.rsquared,
+            'Pval_Alpha': pval_alpha,
+            'Significant_Alpha': 'Significant' if pval_alpha < 0.05 else 'Not Significant'
+        })
+    except Exception as e:
+        print(f"Regression failed for SIC {sic}: {e}")
+
+# Convert list of dictionaries to a DataFrame to be able to analyze it easier
+regression_df = pd.DataFrame(regression_results)
+#Renaming columns
+regression_df.rename(columns={
+    'SICCD': 'Industry Code',
+    'Alpha (const)': 'Alpha',
+    'Beta_Mkt_RF': 'Beta (Mkt-RF)',
+    'Beta_SMB': 'Beta (SMB)',
+    'Beta_HML': 'Beta (HML)',
+    'R_squared': 'R²',
+    'Pval_Alpha': 'P-Value',
+}, inplace=True)
+
+# Sort and round
+regression_df = regression_df.sort_values(by='Industry Code')
+#Mapping colors to show negative numbers as red and positive ones as green
+regression_df = regression_df.style.map(color_light_red_green, subset=['Alpha (Intercept)', 'Beta (Mkt-RF)', 'Beta (SMB)', 'Beta (HML)', 'R²'])
+regression_df
+
+#Analysis
+The Fama-French 3-factor model reveals that industry portfolios are subject to market risk (Mkt-RF), size risk (SMB), and value risk (HML). The beta for each component indicate the extent of exposure. The Mining sector has a Mkt-RF beta of 0.000066, which is reflecting sensitivity to the market fluctuations while an SMB beta of 0.000018, indicating little sensitivity to the size premium, and an HML beta of -0.000041, implying a modest negative connection with the value premium.
+
+According to the findings, none of the industry portfolios provide a positive and statistically significant alpha. All industries, with the exception of "Non-classifiable," exhibit a negative and statistically significant alpha. The industries substantially underperformed according to the predictions of the Fama-French model.
+
+#Distributing capital across industries
+start_date = pd.to_datetime('2003-01-01').date()
+end_date = pd.to_datetime('2023-12-31').date()
+monthly_investment = 300
+investment_per_industry = 100
+
+def get_top_industries(ind_portf, date, lookback_months):
+    end_date = date
+    start_date = end_date - relativedelta(months=lookback_months)
+
+    # Filter data within the lookback period
+    period_data = ind_portf[(ind_portf['Date'] > start_date) & (ind_portf['Date'] <= end_date)]
+
+    # Calculate average returns for each industry and get the top 3
+    performance = period_data.groupby('Industry')['Return'].mean().sort_values(ascending=False)
+    return performance.index[:3].tolist()
+
+def implement_strategy(ind_portf, start_date, end_date, investment_per_industry, lookback_months):
+    portfolio = []
+    current_portfolio = {}  # Track existing investments by industry
+
+    ind_portf['Date'] = pd.to_datetime(ind_portf['Date'])
+    start_date = pd.to_datetime(start_date)
+    end_date = pd.to_datetime(end_date)
+
+    available_dates = sorted(ind_portf['Date'].unique())
+    available_dates = [date for date in available_dates if start_date <= date <= end_date]
+
+
+    for current_date in available_dates:
+        # Sell holdings from last month
+        for industry in list(current_portfolio.keys()):
+            # Sell previous holdings
+            industry_data = ind_portf[(ind_portf['Date'] == current_date) & (ind_portf['Industry'] == industry)]
+
+            if not industry_data.empty:
+                industry_return = industry_data['Return'].values[0]
+                units = current_portfolio[industry]["Units"]
+                value = units * (1 + industry_return)
+                portfolio.append({
+                    'Date': current_date,
+                    'Industry': industry,
+                    'Investment': 0,  # Mark as sale
+                    'Units': units,
+                    'Value': value
+                })
+                del current_portfolio[industry]
+                     # Get top industries for the given month
+        top_industries = get_top_industries(ind_portf, current_date, lookback_months)
+
+        # Invest in top industries
+        for industry in top_industries:
+            industry_data = ind_portf[(ind_portf['Date'] == current_date) & (ind_portf['Industry'] == industry)]
+
+            if not industry_data.empty:
+                industry_return = industry_data['Return'].values[0]
+                units = investment_per_industry / (1 + industry_return)
+                current_portfolio[industry] = {
+                    "Units": units
+                }
+
+                portfolio.append({
+                    'Date': current_date,
+                    'Industry': industry,
+                    'Investment': investment_per_industry,
+                    'Units': units,
+                    'Value': investment_per_industry * (1 + industry_return)
+                })
+
+    return pd.DataFrame(portfolio)
+
+portfolio_12m = implement_strategy(ind_portf, start_date, end_date, investment_per_industry, 12)
+portfolio_6m = implement_strategy(ind_portf, start_date, end_date, investment_per_industry, 6)
+
+# Set parameters
+start_date = pd.to_datetime('2003-01-31')
+end_date = pd.to_datetime('2015-12-31')
+monthly_investment = 300
+investment_per_industry = 100
+
+# Implement strategy with a 12-month formation period
+portfolio_12m = implement_strategy(ind_portf, start_date, end_date, investment_per_industry, 12)
+
+# Calculate final distribution
+final_distribution = portfolio_12m.groupby('Industry')['Value'].sum()
+portfolio_12m.tail()
+
+# Calculate performance metrics for 12-month strategy
+total_value_12m = portfolio_12m.groupby('Industry')['Value'].sum().sum()
+
+# Calculate total_invested
+number_of_months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1  # +1 to include the starting month
+total_invested = monthly_investment * number_of_months
+
+# -- Calculate performance metrics for 12-month strategy --
+total_value_12m = portfolio_12m.groupby('Date')['Value'].sum().sum()
+capital_gain_percentage_12m = (total_value_12m - total_invested) / total_invested * 100
+years_invested = (end_date - start_date).days / 365.25
+average_annual_return_12m = ((1 + capital_gain_percentage_12m / 100) ** (1 / years_invested) - 1) * 100
+
+print(f"12-month formation period:")
+print(f"Total capital gain: {capital_gain_percentage_12m:.2f}%")
+print(f"Average annual return: {average_annual_return_12m:.2f}%")
+
+# Calculate final distribution
+final_distribution_12m = portfolio_12m.groupby('Industry')['Value'].sum()
+portfolio_12m.tail()
+
+plt.figure(figsize=(10, 6))  # Adjust figure size for better readability
+final_distribution_12m.plot(kind='bar')
+plt.title('Final Distribution of Investments Across Industries (12-Month)')
+plt.xlabel('Industry')
+plt.ylabel('Total Value')
+plt.xticks(rotation=45, ha='right')  # Rotate x-axis labels for readability
+plt.tight_layout()
+plt.show()
+
+# -- Calculate performance metrics for 6-month strategy --
+total_value_6m = portfolio_6m.groupby('Date')['Value'].sum().sum()
+capital_gain_percentage_6m = (total_value_6m - total_invested) / total_invested * 100
+average_annual_return_6m = ((1 + capital_gain_percentage_6m / 100) ** (1 / years_invested) - 1) * 100
+print(f"\n6-month formation period:")
+print(f"Total capital gain: {capital_gain_percentage_6m:.2f}%")
+print(f"Average annual return: {average_annual_return_6m:.2f}%")
+
+# Implement strategy with 6-month formation period
+portfolio_over_time_6m = portfolio_6m.groupby('Date')['Value'].sum()
+
+def get_final_distribution(portfolio):
+    """
+    Calculates the final distribution of investments across industries
+    by taking the value of the LAST investment in each industry.
+    """
+    # Sort the portfolio by date
+    portfolio = portfolio.sort_values('Date')
+    
+    # Get the last entry for each industry
+    last_investments = portfolio.groupby('Industry').tail(1)
+    
+    # Create distribution series
+    final_distribution = last_investments.groupby('Industry')['Value'].sum()
+    
+    return final_distribution
+
+# Get the final distribution for both strategies
+final_distribution_12m = get_final_distribution(portfolio_12m)
+final_distribution_6m = get_final_distribution(portfolio_6m)
+
+# Combine the data for plotting
+df = pd.DataFrame({'12-Month': final_distribution_12m, '6-Month': final_distribution_6m})
+
+# Plotting the distributions side-by-side
+ax = df.plot(kind='bar', figsize=(12, 6))
+plt.title('Final Distribution of Investments Across Industries (12-Month vs. 6-Month Formation)')
+plt.xlabel('Industry')
+plt.ylabel('Total Value')
+plt.xticks(rotation=45, ha='right')  # Rotate x-axis labels for readability
+plt.tight_layout() # Adjust layout to prevent labels from overlapping
+plt.show()
+
+# Aggregate portfolio value by date for both strategies
+portfolio_over_time_12m = portfolio_12m.groupby('Date')['Value'].sum().reset_index()
+portfolio_over_time_6m = portfolio_6m.groupby('Date')['Value'].sum().reset_index()
+
+# Filter data for the year 2003
+portfolio_over_time_12m_2003 = portfolio_over_time_12m[portfolio_over_time_12m['Date'].dt.year == 2003]
+
+# Filter data for the first 6 months of the year 2003 (January to June)
+portfolio_over_time_6m_2003 = portfolio_over_time_6m[
+    (portfolio_over_time_6m['Date'].dt.year == 2003) & (portfolio_over_time_6m['Date'].dt.month <= 6)
+]
+
+# Create the Plotly figure with subplots
+fig = make_subplots(rows=1, cols=1,
+                    shared_xaxes=True,
+                    subplot_titles=['Portfolio Value Over Time (2003)'])
+
+# Add the trace for the 12-month formation period (2003)
+fig.add_trace(go.Scatter(x=portfolio_over_time_12m_2003['Date'], y=portfolio_over_time_12m_2003['Value'],
+                         mode='lines', name='12-Month Formation',
+                         hovertemplate='Date: %{x}<br>Value: %{y:.2f}<extra></extra>'),
+              row=1, col=1)
+
+# Add the trace for the 6-month formation period (first 6 months of 2003)
+fig.add_trace(go.Scatter(x=portfolio_over_time_6m_2003['Date'], y=portfolio_over_time_6m_2003['Value'],
+                         mode='lines', name='6-Month Formation (First Half)',
+                         hovertemplate='Date: %{x}<br>Value: %{y:.2f}<extra></extra>'),
+              row=1, col=1)
+
+# Customize the layout
+fig.update_layout(
+    title='Portfolio Value Over Time in 2003 (12-Month vs 6-Month Formation)',
+    xaxis_title='Date',
+    yaxis_title='Total Portfolio Value',
+    hovermode='x unified'  # Show hover info for all traces at the same x position
+)
+
+# Show the plot
+fig.show()
+
+#Long and Short Positions turnover
+
+def simple_long_short_strategy(df, lookback=3, invest_amount=300):
+    df = df.copy()
+    df['Return'] = df['Return'].fillna(0)  # Fill missing returns with 0
+    dates = df['Date'].sort_values()
+    trades = []
+
+    for i in range(lookback, len(dates), 3):  # Process every quarter
+        today = dates.iloc[i]
+        past_returns = df.iloc[i - lookback:i]['Return']  
+
+        # Identify the trend (we can't find "best" and "worst" industry with one column)
+        total_return = (1 + past_returns).prod() - 1
+        position_type = 'long' if total_return > 0 else 'short'  # If return is positive, go long; else, go short
+
+        trades.append({'start': today, 'type': position_type, 'value': invest_amount})
+
+    # Apply returns to investments
+    for trade in trades:
+        start_idx = df[df['Date'] == trade['start']].index[0]  
+        for i in range(start_idx, len(df)):
+            next_return = df.iloc[i]['Return']
+            if trade['type'] == 'long':
+                trade['value'] *= (1 + next_return)
+            else:  
+                trade['value'] *= (1 - next_return)  # Shorting logic
+
+    # Compute final results
+    final_value = sum(t['value'] if t['type'] == 'long' else -t['value'] for t in trades)
+    invested = len(trades) * invest_amount
+
+    print("Final Portfolio Value: £", round(final_value, 2))
+    print("Total Money Invested: £", round(invested, 2))
+    print("Profit/Loss: £", round(final_value - invested, 2))
+
+    return final_value, invested, trades
+
+# Run the function on your DataFrame
+final_value_ls, total_invested_ls, positions = simple_long_short_strategy(equal_weighted_index_df)
+
+#Compute the Average Annual Return
+num_months_ls = len(set([t['start'] for t in positions]))
+num_years_ls = num_months_ls / 12
+avg_annual_return_ls = (final_value_ls / total_invested_ls) ** (1 / num_years_ls) - 1
+
+print("Average Annual Return of Long-Short Strategy: {:.2%}".format(avg_annual_return_ls))
+
+#Analysis
+I used a quarterly long short strategy where I invested  £150 into the industry with the best 3 months returns and shorted £150 from the industry with the worst 3 months returns. During the full data period, this was rebalanced on a quarterly basis. At the end of the development, the strategy had a total value of £ 6721.58 implying huge loss. When comparing the average annual return, around -14.18% , the momentum-based approach actually underperform in this period. On the other hand, this brings to light the dangers of systematic trading strategies, specifically because markets may indeed turn or hold against trend over the long run.
+
+
+
+
