@@ -1,0 +1,431 @@
+#Importing Datasets
+actual_data = pd.read_excel("hstarts_first_second_third.xlsx", 'DATA', skiprows=4)
+forecasted_data = pd.read_excel("Individual_HOUSING.xlsx")
+
+#Scale the data to be able to compare
+forecast_scaling_factor = 1000 
+forecasted_data["HOUSING2"] *= forecast_scaling_factor  # Used the initial dataset for further usage
+
+#Change the Column names to be easier to merge 
+actual_data.columns = ['Date', 'First_Update', 'Second_Update', 'Third_Update', 'Most_Recent'] 
+# Rename specific columns in 'forecasted_data' to match merge keys
+forecasted_data.rename(columns={'YEAR': 'Year', 'QUARTER': 'Quarter'}, inplace=True)
+print(actual_data)
+
+# Drop unnecessary columns from actual_data
+actual_data.drop('First_Update', axis=1, inplace=True)
+actual_data.drop('Second_Update', axis=1, inplace=True)
+actual_data.drop('Third_Update', axis=1, inplace=True)
+# Drop rows with missing values (NaNs) from both datasets
+forecasted_data = forecasted_data.dropna()
+actual_data = actual_data.dropna()
+actual_data.head()
+
+#Extract Years and Quarters from the 'Date' column
+
+actual_data['Year'] = pd.to_datetime(actual_data['Date'], format='%Y:%m').dt.year # Extracting Years
+actual_data['Quarter'] = pd.to_datetime(actual_data['Date'], format='%Y:%m').dt.quarter #Extracting Data
+actual_data.head()
+
+#Built a new dataframe for this question specifically
+AD_Q2T1 = actual_data
+print(AD_Q2T1)
+
+# grouping by Year_Quarters and filtered the unnecesary columns
+AD_Q2T1['Year_Quarter'] = actual_data['Year'].astype(str) + 'Q' + actual_data['Quarter'].astype(str) #Creating Year_Quarter column and addressing Year 
+QD_Q2T1 = AD_Q2T1.groupby('Year_Quarter')[['Most_Recent']].mean() #Grouping by Quarter
+# Drop the 'Date' column from actual_data as it's no longer needed
+actual_data.drop('Date', axis=1, inplace=True)
+# Set pandas to format float outputs to 2 decimal places
+
+QD_Q2T1.head()
+
+#Format date 
+FD_Q2T1 = forecasted_data
+FD_Q2T1['Year_Quarter'] = forecasted_data['Year'].astype(str) + 'Q' + forecasted_data['Quarter'].astype(str)
+FD_Q2T1.tail()
+
+# Drop unnecessary columns
+columns_to_drop = ['Year','Quarter','HOUSING1','HOUSING3','HOUSING4','HOUSING5','HOUSING6','HOUSINGA','HOUSINGB']
+FD_Q2T1.drop(columns=columns_to_drop) #To keep the integrity of the initial dataset for further use, a new one was created with the columns needed
+
+#Removing unecessary columns and group by quarters
+HOUSING2QuarterlyFD_1 = FD_Q2T1.groupby('Year_Quarter')[['HOUSING2']].mean() #Grouping by Quarter
+# Display first 10 rows
+HOUSING2QuarterlyFD_1.head()
+
+#Merge both datasets
+merged_data = QD_Q2T1.merge(HOUSING2QuarterlyFD_1, on='Year_Quarter', how='inner')
+merged_data.head()
+
+#Filter data of the Years for group 4 
+QMD_group4 = merged_data.loc["2003Q1":"2015Q4"]
+QMD_group4.head()
+
+# Create interactive figure
+fig = go.Figure()
+
+# Most_Recent variable trace lines creation
+fig.add_trace(go.Scatter(
+    x=QMD_group4.index,
+    y=QMD_group4['Most_Recent'],
+    mode='lines+markers',
+    name='Most_Recent',
+    marker=dict(symbol='circle'),
+    hovertemplate='Quarter: %{x}<br>Value: %<extra></extra>'
+))
+
+# HOUSING2 variable trace lines creation
+fig.add_trace(go.Scatter(
+    x=QMD_group4.index,
+    y=QMD_group4['HOUSING2'],
+    mode='lines+markers',
+    name='HOUSING2',
+    marker=dict(symbol='pentagon'),
+    hovertemplate='Quarter: %{x}<br>Value: %<extra></extra>'
+))
+
+# Updating Layout of the graph
+fig.update_layout(
+    title='Comparison of Most_Recent and HOUSING2',
+    xaxis_title='Year_Quarter',
+    yaxis_title='Values',
+    hovermode='x',
+    legend=dict(x=0.01, y=0.99),
+    template='plotly_white',
+    height=500,
+    width=900
+)
+
+# Show chart
+fig.show()
+
+#Graph Analysis
+
+#Filter data of the Years for group 4 
+QMD_group4 = merged_data.loc["2003Q1":"2015Q4"]
+QMD_group4.head()
+Most_Recent	HOUSING2
+Year_Quarter		
+2003Q1	1736.00	1693.51
+2003Q2	1753.67	1697.30
+2003Q3	1889.67	1714.93
+2003Q4	2035.67	1797.47
+2004Q1	1918.33	1932.60
+# Create interactive figure
+fig = go.Figure()
+
+# Most_Recent variable trace lines creation
+fig.add_trace(go.Scatter(
+    x=QMD_group4.index,
+    y=QMD_group4['Most_Recent'],
+    mode='lines+markers',
+    name='Most_Recent',
+    marker=dict(symbol='circle'),
+    hovertemplate='Quarter: %{x}<br>Value: %<extra></extra>'
+))
+
+# HOUSING2 variable trace lines creation
+fig.add_trace(go.Scatter(
+    x=QMD_group4.index,
+    y=QMD_group4['HOUSING2'],
+    mode='lines+markers',
+    name='HOUSING2',
+    marker=dict(symbol='pentagon'),
+    hovertemplate='Quarter: %{x}<br>Value: %<extra></extra>'
+))
+
+# Updating Layout of the graph
+fig.update_layout(
+    title='Comparison of Most_Recent and HOUSING2',
+    xaxis_title='Year_Quarter',
+    yaxis_title='Values',
+    hovermode='x',
+    legend=dict(x=0.01, y=0.99),
+    template='plotly_white',
+    height=500,
+    width=900
+)
+
+# Show chart
+fig.show()
+Explanation: Although there aren't many perfectly accurate forecasts in the dataset, it's noticeable that between 2003 and 2006, the gap between forecasted and actual values is significantly larger compared to the rest of the timeframe. Several factors could explain this. In the early 2000s, the widespread adoption of computers and advanced forecasting tools was still underway. As a result, forecasters may have had limited access to reliable equipment or statistical software, which could have contributed to larger margins of error. Additionally, this period coincided with the housing boom that ultimately led to the 2008 financial crisis. The number of homes being built surged, and this unpredictability may have made accurate forecasting more difficult. Interestingly, the number of homes built began to decline in 2006, even before the crash officially hit. This decline could be seen as a leading indicator of the housing bubble bursting. During this period of contraction, the difference between forecasts and actual builds narrowed, possibly due to more cautious behavior in the housing market. After the 2008 crash, the market began to stabilize, and so did the number of houses being built. This may have been due to increased awareness around financial responsibility—people were less likely to purchase homes they couldn't afford, which had been a key factor in the housing crisis. As a result, forecasters may have found it easier to make accurate predictions in a more rational market environment. Lastly, improvements in technology and greater access to powerful computing tools likely contributed to the increased forecasting accuracy observed in the post-crisis years. Better software, data availability, and computational resources made it easier for analysts to produce more reliable forecasts.
+
+#Computing forecasters standard deviation among forecasters from different industries
+
+#Building data frames for task 2
+AD_Q2T2 = QD_Q2T1
+FD_Q2T2 = FD_Q2T1
+print("Actual Data:")
+print(QD_Q2T1.head())
+
+print("Forecasted Data:")
+print(FD_Q2T2.head())
+
+# Merge the actual (quarterly_actual) and forecasted data on Year, Quarter, and Year_Quarter
+Q2T2_merged = AD_Q2T2.merge(FD_Q2T2, on=['Year_Quarter'], how='inner')
+
+# Print the first few rows of the merged dataset
+print("\nmerged_data head (after merging):")
+print(Q2T2_merged.head())
+
+# Filter merged_data to include only rows from 2003 to 2015 as previously was only filtered after merging
+Q2T2_merged = Q2T2_merged[(Q2T2_merged['Year'] >= 2003) & (Q2T2_merged['Year'] <= 2015)]
+
+# Calculate forecast error: percentage difference between forecasted and actual housing values
+Q2T2_merged['Forecast_Error'] = (Q2T2_merged['HOUSING2'] / Q2T2_merged['Most_Recent']) - 1
+
+
+print("\nmerged_data head with Forecast_Error:")
+
+Q2T2_merged.head()
+
+# Group merged data by INDUSTRY and calculate standard deviation of forecast errors for each
+std_by_industry = Q2T2_merged.groupby('INDUSTRY')['Forecast_Error'].std()
+
+print("\nStandard Deviation of Forecast Error by Industry:")
+print(std_by_industry)
+
+#Computing forecast errors across industries
+quarterly_error = Q2T2_merged.groupby('Year_Quarter')['Forecast_Error'].mean()
+# Create interactive line chart
+fig = go.Figure()
+
+# Add forecast error trace
+fig.add_trace(go.Scatter(
+    x=quarterly_error.index,
+    y=quarterly_error.values,
+    mode='lines+markers',
+    name='Forecast Error',
+    line=dict(color='blue'),
+))
+
+# Add horizontal reference line at y=0
+fig.add_trace(go.Scatter(
+    x=quarterly_error.index,
+    y=[0]*len(quarterly_error),
+    mode='lines',
+    name='Perfect Forecast (Error = 0)',
+    line=dict(color='red', dash='dash'),
+    hoverinfo='skip'
+))
+
+# Layout customization
+fig.update_layout(
+    title='Forecast Accuracy Over Time (2003–2015)',
+    xaxis_title='Year_Quarter',
+    yaxis_title='Forecast Error (Forecast/Actual - 1)',
+    hovermode='x',
+    legend=dict(x=0.01, y=0.99),
+    template='plotly_white',
+    height=500,
+    width=900
+)
+
+# Show the interactive chart
+fig.show()
+
+#Graph Analysis
+#The standard deviation of forecast errors across industries is 0.0935, meaning forecasts are not always spot on but fairly close. Industry 1 has an error of 0.0943, Industry 2 is 0.0953, and Industry 3 is 0.0901. The differences are small, but some industries seem to make slightly better predictions than others.
+Looking at the graph, we can see that forecasts often miss the actual values—sometimes too high, sometimes too low. The errors change over time, showing that predictions are not always stable. To improve accuracy, we might need better forecasting methods, using more data or improved models.
+
+#Regression Analysis on mean forecast changes
+##ompute the mean forecasted
+mean_forecast_by_quarter = merged_data.groupby('Year_Quarter')['HOUSING2'].mean().reset_index()
+mean_actual_by_quarter = merged_data.groupby('Year_Quarter')['Most_Recent'].mean().reset_index()
+
+# Display the mean forecast and actual data for verification
+print("\nmean_forecast_by_quarter head:")
+print(mean_forecast_by_quarter.head())
+print("\nmean_actual_by_quarter head:")
+print(mean_actual_by_quarter.head())
+
+# Merge mean forecast and actual data
+combined_data = mean_forecast_by_quarter.merge(mean_actual_by_quarter, on='Year_Quarter')
+
+# Display combined_data after merging
+print("\ncombined_data head:")
+print(combined_data.head())
+
+# Calculate quarterly changes
+combined_data['Forecast_Change'] = combined_data['HOUSING2'].diff()
+combined_data['Actual_Change'] = combined_data['Most_Recent'].diff()
+
+# Display combined_data after calculating changes
+print("\ncombined_data with changes head:")
+print(combined_data.head())
+
+# Drop NaN values after differencing
+combined_data.dropna(inplace=True)
+
+# Display combined_data after dropping NaNs
+print("\ncombined_data after dropping NaNs head:")
+print(combined_data.head())
+
+# Regress mean forecast change on actual change
+X = sm.add_constant(combined_data['Forecast_Change'])
+y = combined_data['Actual_Change']
+
+model = sm.OLS(y, X).fit()
+
+print(model.summary())
+
+#Analysis
+#This analysis examines how well forecasted changes align with actual changes in housing starts. The results show that when the forecasted housing change increases by 1 unit, actual housing starts rise by about 0.50 units. This suggests that forecasts do follow real market trends to some degree, but they do not fully capture actual movements.
+The R-squared value is 0.180, meaning that only 18% of the changes in real housing starts can be explained by changes in forecasts. This is relatively low, indicating that many other factors influence housing starts. Economic conditions, government policies, interest rates, and unexpected events all play a major role and may not be fully reflected in these forecasts.
+The p-value for forecast changes is 0.0019, which suggests a statistically significant relationship between forecasted and actual changes. However, the connection is not particularly strong, meaning forecasts provide insight but are not always accurate.
+In summary, while forecasts offer some useful information, they often miss key influences on housing trends. Improving forecasting methods by including more economic indicators, better statistical models, or machine learning could lead to more reliable predictions. This would help businesses, policymakers, and investors make smarter decisions in the housing market.
+
+#Regress forecasted housing data on SPY
+## Load the  data
+sp500_data = pd.read_csv("SPY.csv")
+sp500_data= sp500_data.dropna()
+# Convert 'Date' column to datetime format (automatically detects format)
+sp500_data['Date'] = pd.to_datetime(sp500_data['Date'])
+
+# Extract Year and Quarter
+sp500_data['Year'] = sp500_data['Date'].dt.year
+sp500_data['Quarter'] = sp500_data['Date'].dt.quarter
+
+# Create Year_Quarter column
+sp500_data['Year_Quarter'] = sp500_data['Year'].astype(str) + 'Q' + sp500_data['Quarter'].astype(str)
+
+# Filter data between Q1 2003 and Q4 2015
+sp500_data_filtered = sp500_data[(sp500_data['Year_Quarter'] >= '2003Q1') & (sp500_data['Year_Quarter'] <= '2015Q4')]
+
+# Calculate percentage change in S&P 500 close price
+sp500_data_filtered['Pct_Change_SP500'] = sp500_data_filtered['Close'].pct_change() * 100
+
+# Group by Year_Quarter and calculate average percentage change
+Quarterly_sp500 = sp500_data_filtered.groupby('Year_Quarter')['Pct_Change_SP500'].mean().reset_index()
+
+# Display the first few rows
+print(Quarterly_sp500.head())
+
+QMD_group4['Pct_Change_housing_starts'] = QMD_group4['Most_Recent'].pct_change() * 100
+
+#Merging datasets
+merged_datareg = Quarterly_sp500.merge(QMD_group4, on='Year_Quarter', how='inner')
+merged_datareg = merged_datareg.dropna()
+merged_datareg.head()
+
+X = merged_datareg['Pct_Change_housing_starts']
+Y = merged_datareg['Pct_Change_SP500']
+
+# Add constant for intercept
+X = sm.add_constant(X)
+
+# Run regression
+model = sm.OLS(Y, X).fit()
+
+# Print summary
+print(model.summary())
+
+#Analysis
+Our regression analysis examines whether changes in housing starts can predict S&P 500 returns.
+The model finds a statistically significant positive relationship, with a 1% increase in housing starts leading to a 0.1353% rise in the S&P 500. The p-value (0.001) confirms this relationship is unlikely due to chance.However, the R-squared value (20.1%) indicates that housing starts explain only a small portion of S&P 500 fluctuations, meaning other factors significantly impact stock returns. While the forecasted change in housing starts provides some predictive power, it should not be the sole factor for forecasting S&P 500 performance.
+
+#Perform Individual level analysis on a forecaster basis
+
+# Create a copy of the data
+AD_Q2T4 = actual_data
+FD_Q2T4 = forecasted_data
+FD_Q2T4.head()
+
+
+#Rename columns in FD_Q2T4
+FD_Q2T4.rename(columns={'YEAR': 'Year', 'QUARTER': 'Quarter'}, inplace=True)
+
+#
+FD_Q2T4['Year_Quarter_ID'] = FD_Q2T4['Year'].astype(str) + 'Q' + FD_Q2T4['Quarter'].astype(str) + 'ID' + FD_Q2T4['ID'].astype(str)
+
+AD_Q2T4 = AD_Q2T4.groupby(['Year', 'Quarter'])['Most_Recent'].mean().reset_index()
+
+
+#Drop rows with NA in AD_Q2T4 and FD_Q2T4 (ensure to reassign it back)
+AD_Q2T4 = AD_Q2T4.dropna()
+FD_Q2T4 = FD_Q2T4.reset_index()
+#Filter rows by 'Year' (2003 to 2015)
+FD_Q2T4 = FD_Q2T4[(FD_Q2T4['Year'] >= 2003) & (FD_Q2T4['Year'] <= 2015)]
+AD_Q2T4 = AD_Q2T4[(AD_Q2T4['Year'] >= 2003) & (AD_Q2T4['Year'] <= 2015)]
+
+#Confirm column names and inspect the head of FD_Q2T4
+FD_Q2T4.head()
+
+#Merged data 
+combined_Q2T4 = pd.merge(FD_Q2T4, AD_Q2T4[['Year', 'Quarter', 'Most_Recent']], 
+                        how='inner')
+column_droping = ['Year','Quarter','ID','INDUSTRY','HOUSING1','HOUSING3','HOUSING4','HOUSING5','HOUSING6','HOUSINGA','HOUSINGB',"Year_Quarter","index"]
+combined_Q2T4.drop(columns = column_droping, inplace = True)
+combined_Q2T4.head()
+
+#Calculate Errors for further use
+combined_Q2T4['Error'] = abs((combined_Q2T4['HOUSING2'] / combined_Q2T4['Most_Recent']) - 1)
+print(combined_Q2T4)
+
+
+# Calculated : MAE: Mean Absolute Error, RMSE: Root Mean Squared Error, MAPE: Mean Absolute Percentage Error
+error_metrics = combined_Q2T4.groupby('Year_Quarter_ID').agg(
+    MAE=('Error', lambda x: np.mean(np.abs(x)).round(6))
+)
+error_metrics['MAE'] = error_metrics['MAE'].round(6)
+
+print(error_metrics)
+
+#Finding the TOP5 MAE
+top_10_MAE = error_metrics.sort_values(by = "MAE").head(10)
+print(top_10_MAE)
+
+#Building a plot for the top 10 Performers
+
+ax = top_10_MAE.plot(kind='bar', stacked=True, figsize=(10, 6))
+
+# Customize the chart
+ax.set_title('Top 10 Performers: Bar Chart of MAE', fontsize=14)
+ax.set_xlabel('Year_Quarter_ID', fontsize=12)
+ax.set_ylabel('MAE', fontsize=12)
+ax.legend(title='Metrics', bbox_to_anchor=(1.05, 1), loc='upper left')
+print(ax)
+
+#Listing the TOP 5 Results, including Error 
+top_10 = ["2005Q3ID535","2005Q3ID84","2015Q3ID433","2012Q3ID535","2012Q3ID420","2011Q1ID528","2010Q3ID546","2010Q3ID566","2005Q4ID533","2005Q4ID535"]
+filtered_data = combined_Q2T4[combined_Q2T4['Year_Quarter_ID'].isin(top_10)]
+print("The 10 Top forecasters:")
+print(filtered_data)
+
+#Finding the worst 5 forecasters
+worst_10_MAE = error_metrics.sort_values(by = "MAE").tail(10)
+print(worst_10_MAE)
+
+#Building the chart for the TOP 10 Worst Performers 
+bx = worst_10_MAE.plot(kind='bar', stacked=True, figsize=(10, 6))
+
+# Customize the chart
+bx.set_title('Worst 5 Performers:Bar Chart of MAE', fontsize=14)
+bx.set_xlabel('Year_Quarter_ID', fontsize=12)
+bx.set_ylabel('MAE', fontsize=12)
+bx.legend(title='Metrics', bbox_to_anchor=(1.05, 1), loc='upper left')
+print(bx)
+
+#Listing the Worst 5 Forecasters to be able to compare actual forecasts and data
+worst_10 = ["2008Q4ID483","2008Q4ID99","2010Q4ID558","2009Q1ID504","2010Q3ID426","2009Q1ID541","2011Q1ID426","2008Q4ID531","2008Q4ID421","2010Q4ID426"]
+filtered_worstdata = combined_Q2T4[combined_Q2T4['Year_Quarter_ID'].isin(worst_10)]
+print("The worst 10 forecasters")
+filtered_worstdata.head(10)
+
+t_test_AD =combined_Q2T4["Most_Recent"].astype(float)  # Convert to float if necessary
+t_test_FD =combined_Q2T4["HOUSING2"].astype(float)   # Convert to float if necessary
+
+t_stat, p_value = stats.ttest_rel(t_test_AD, t_test_FD)
+print(f"T-statistic: {t_stat}")
+print(f"P-value: {p_value}")
+
+# Interpret the p-value
+alpha = 0.05  # 5% significance level
+if p_value < alpha:
+    print("There is a significant difference between forecasts and actual results.")
+else:
+    print("There is no significant difference between forecasts and actual results.")
+
+#Analysis
+#In the first column, the forecaster ID'd 535 appeared 3 times with one of the forecasts MAE being 0 as he had a 100% forecast being the best forecaster in the time 2003-2015 time frame. The second bar chart shows the worst 10 forecasts, the forecaster number 426 appears 3 times in the list of the worst 10 forecasters, being the forecaster with the biggest MAE between forecasters. The range of values from the worst 10, varying between 0.36 and 0.64 is much shorter than the top 10 as in the top which varied from 0 to 0.000645.
