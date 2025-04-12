@@ -1,0 +1,120 @@
+import numpy as np # For numerical operations and handling arrays
+import pandas as pd # For data manipulation and analysis
+import matplotlib as mpl # Base matplotlib library for plot configurations
+import matplotlib.pyplot as plt # For creating static visualizations and plots
+from statsmodels.formula.api import ols # For running ordinary least squares regression using formulas
+import statsmodels.api as sm # For statistical models, tests, and plotting functions
+import scipy # Scientific computing library with various submodules
+import scipy.stats # Statistical functions and probability distributions
+from scipy import stats # Direct access to statistical functions in scipy.stats
+import os # For interacting with the operating system (e.g., file paths)
+import matplotlib.pyplot as plt  # (Repeated) For plotting – already imported above
+from scipy.optimize import minimize # For optimization tasks, like finding minima of functions
+import seaborn as sns # For advanced data visualization with attractive statistical plots
+import plotly.graph_objects as go #To personalize graphs and add trace lines, hovers
+from dateutil.relativedelta import relativedelta #Provides flexible date calculations
+import scipy.stats as si #Large module of scstatisticalipy that provides a wide range of statistcal functions
+import math #used for basic math functions
+from plotly.subplots import make_subplots #function to personalize plots
+
+
+#Defining Bond Price Function
+def bond_price(ytm, coupon, face_value, n):
+# Calculate present value of all coupon payments
+    coupon_pv = sum([coupon / (1 + ytm)**t for t in range(1, n + 1)])
+    # Calculate present value of the face value repaid at maturity
+    face_value_pv = face_value / (1 + ytm)**n
+    # Return total bond price (sum of PV of coupons and face value)
+    return coupon_pv + face_value_pv
+
+#Defining Objetive Function to solve bondprice
+def objective_function(ytm, price, coupon, face_value, n):
+    # Calculate bond price using current guess of YTM
+    cp = bond_price(ytm, coupon, face_value, n)
+    # Return root of squared error between calculated price and actual market price
+    return np.sqrt((cp - price)**2)
+
+#Defining Yield-to-Maturity (YTM) Function
+def calculate_ytm(price, coupon, face_value, n):
+    # Use numerical optimization to minimize the objective function
+    # x0=0.05 is the initial guess for YTM (5%)
+    # bounds restrict YTM to between 0% and 100%
+    result = minimize(objective_function, x0=0.05, args=(price, coupon, face_value, n), bounds=[(0, 1)])
+    # Return the optimized YTM value (extracted from result)
+    return result.x[0]
+
+#Changing whole data set format
+pd.options.display.float_format = '{:.2f}'.format
+
+#Using the inputs given to calculate the above defined functions
+price = 900
+coupon = 50
+face_value = 1000
+n = 15
+
+#Calculate actual YTM 
+ytm = calculate_ytm(price, coupon, face_value, n)
+# Print the YTM as a percentage with 2 decimal places
+print(f"The YTM is: {ytm * 100}%")
+
+#Performing sensitivity Analysis
+
+# Sensitivity Analysis: Price varying from 900 to 1100
+prices = np.arange(700, 1301, 100)  # Creating prices as multiples of 100
+ytms_price = [calculate_ytm(p, coupon, face_value, n) for p in prices] # Calculate YTM
+
+# Create the interactive figure
+fig = go.Figure()
+ #Add trace lines to the scatter plot turns it interactive
+fig.add_trace(go.Scatter(
+    x=prices,
+    y=ytms_price,
+    mode='lines',
+    name='YTM vs Price',
+    line=dict(color='steelblue'),
+    hovertemplate='Price: %{x}<br>YTM: %{y:.4f}<extra></extra>'
+))
+
+# Layout customization
+fig.update_layout(
+    title='Price Sensitivity Analysis',
+    xaxis_title='Price',
+    yaxis_title='YTM',
+    hovermode='x',
+    template='plotly_white',
+    height=450,
+    width=700
+)
+
+# Show the interactive plot
+fig.show()
+
+# Create interactive figure
+fig = go.Figure()
+
+fig.add_trace(go.Scatter(
+    x=years,
+    y=ytms_years,
+    mode='lines',
+    name='YTM vs Years to Maturity',
+    line=dict(color='red'),
+    hovertemplate='Years: %{x}<br>YTM: %{y:.4f}<extra></extra>'
+))
+
+# Layout settings
+fig.update_layout(
+    title='Years to Maturity Sensitivity Analysis',
+    xaxis_title='Years to Maturity (N)',
+    yaxis_title='YTM',
+    hovermode='x',
+    template='plotly_white',
+    height=400,
+    width=700
+)
+
+# Show plot
+fig.show()
+
+#Graph Analysis
+
+#The analysis shows how Yield to Maturity (YTM) is sensitive to bond price and years to maturity. Since the bond price and YTM have an inverse relationship, as seen in the first graph, lower bond prices translate into higher yields and vice versa. In the second graph we observe that as the bond's maturity increases, YTM decreases. Now this is since the bond is trading at a discount, its price will rise to face value by maturity. While longer maturities carry default risk, the price appreciation offsets this, leading to a lower YTM. Coupon payments spread over more years also reduce the immediate return needed to match the bond’s price.
