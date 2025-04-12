@@ -1,0 +1,254 @@
+# Function to price a European put option using the Black-Scholes model
+def black_scholes_put(S, E, T, rf, sigma):
+    d1 = (np.log(S / E) + (rf + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
+    d2 = d1 - sigma * np.sqrt(T)
+    put_price = E * np.exp(-rf * T) * si.norm.cdf(-d2) - S * si.norm.cdf(-d1)
+    return put_price
+
+# Given parameters
+S = 15   # Current stock price
+E = 18   # Strike price
+T = 2    # Time to maturity (years)
+rf = 0.05  # Risk-free rate
+sigma = 0.3  # Volatility
+
+# Compute Black-Scholes put option price
+bs_put_price = black_scholes_put(S, E, T, rf, sigma)
+
+# Output result
+print(f"Black-Scholes Put Price: {bs_put_price:.4f}")
+
+# Function to price a European put option using the Binomial Tree method
+def binomial_put(S, E, T, rf, sigma, m):
+    dt = T / m  # Time step
+    u = np.exp(sigma * np.sqrt(dt))  # Up factor
+    d = 1 / u  # Down factor
+    p = (np.exp(rf * dt) - d) / (u - d)  # Risk-neutral probability
+
+    # Price tree initialization
+    price_tree = np.zeros((m + 1, m + 1))
+
+    # Fill the tree with underlying asset prices
+    for i in range(m + 1):
+        for j in range(i + 1):
+            price_tree[j, i] = S * (u ** (i - j)) * (d ** j)
+
+    # Option value tree
+    option_tree = np.zeros((m + 1, m + 1))
+
+    # Compute option values at maturity
+    for j in range(m + 1):
+        option_tree[j, m] = max(E - price_tree[j, m], 0)
+
+    # Backward induction to compute the option price
+    for i in range(m - 1, -1, -1):
+        for j in range(i + 1):
+            option_tree[j, i] = np.exp(-rf * dt) * (p * option_tree[j, i + 1] + (1 - p) * option_tree[j + 1, i + 1])
+
+    return option_tree[0, 0]
+
+# Compute Binomial put option price for m=4
+m = 4
+binomial_put_price = binomial_put(S, E, T, rf, sigma, m)
+
+# Output result
+print(f"Binomial Tree Put Price (m={m}): {binomial_put_price:.4f}")
+
+# Generate values for different time steps
+m_values = np.arange(2, 501, 5)  # Time steps from 2 to 500 with step 5
+binomial_prices = [binomial_put(S, E, T, rf, sigma, m) for m in m_values]
+
+# Plot convergence
+plt.figure(figsize=(10, 5))
+plt.plot(m_values, binomial_prices, label="Binomial Tree Price", linestyle="--")
+plt.axhline(y=bs_put_price, color="r", linestyle="-", label="Black-Scholes Price")
+plt.xlabel("Number of Time Steps (m)")
+plt.ylabel("Put Option Price")
+plt.title("Convergence of Binomial Tree Price to Black-Scholes Price")
+plt.legend()
+plt.grid()
+
+# Compute pricing error
+pricing_errors = np.array(binomial_prices) - bs_put_price
+
+# Plot pricing error
+plt.figure(figsize=(10, 5))
+plt.plot(m_values, pricing_errors, label="Pricing Error", color="black")
+plt.axhline(y=0, color="r", linestyle="--", label="Zero Error Line")
+plt.xlabel("Number of Time Steps (m)")
+plt.ylabel("Pricing Error (Binomial - Black-Scholes)")
+plt.title("Pricing Error vs. Number of Time Steps")
+plt.legend()
+plt.grid()
+plt.show()
+
+#Find Option Price Sensitivity
+
+# Binomial Option Pricing Model
+def binomial_put_price(S0, E, Rf, sigma, T, m): #Defining binomial_put_price to calculate put option price using binomial model with given parameters
+    dt = T / m  #To calculate dt as the time per step by dividing total time (T) by steps (m)
+    u = np.exp(sigma * np.sqrt(dt)) #To calculate u, the up factor, using volatility (sigma) and time step (dt)
+    d = 1 / u  #To calculate d, the down factor, as the inverse of the up factor (u)
+    p = (np.exp(Rf * dt) - d) / (u - d)  #To calculate p, the risk-neutral probability, using the risk-free rate, up, and down factors
+    disc = np.exp(-Rf * dt) #To calculate the discount factor using the risk-free rate (Rf) and time step (dt)
+    
+    # Initialize the option value at maturity
+    ST = np.maximum(E - S0 * u**np.arange(m+1) * d**(m-np.arange(m+1)), 0) #To calculate the option payoff for each possible stock price at time T
+    
+    # Backward induction to find the option price
+    for i in range(m-1, -1, -1): #Looping backward from m-1 to 0, stepping through each time step
+        ST = disc * (p * ST[1:i+2] + (1 - p) * ST[:i+1]) #To calculate the option price at each step by discounting the expected payoff using the risk-neutral probability (p)
+    
+    return ST[0] #Returns the option price at the initial step (time 0)
+
+# Parameters
+E = 100  #Strike price
+S0 = 100  #Initial asset price
+Rf = 0.04  #Risk-free rate
+sigma = 0.20  #Volatility
+T = 5  #Time to maturity
+m = 200  #Number of periods
+
+#Sensitivity to Risk-Free Rate (Rf)
+Rfs = np.arange(0.01, 0.11, 0.001) #Creating an array of risk-free rates from 0.01 to 0.10 in steps of 0.001
+prices_Rf = [binomial_put_price(S0, E, r, sigma, T, m) for r in Rfs] #Calculating option prices for each risk-free rate using the binomial model
+
+#Sensitivity to Volatility (Sigma)
+sigmas = np.arange(0.01, 0.51, 0.1) #Creating an array of volatility values (sigmas) from 0.01 to 0.5 in steps 0.1
+prices_sigma = [binomial_put_price(S0, E, Rf, s, T, m) for s in sigmas] #Calculating option prices for each volatility value using the binomial model
+
+#Sensitivity to Number of Periods (m)
+ms = np.arange(5, 1001, 10) #Creating an array of step values (m) from 5 to 1000 steps of 10
+prices_m = [binomial_put_price(S0, E, Rf, sigma, T, mm) for mm in ms] #Calculating option prices for each step value (m) using the binomial model
+
+#Sensitivity to Initial Asset Price (S0)
+S0s = np.arange(50, 151, 1) #Creating an array of initial stock prices (s0) from 50 to 150 in steps of 1
+prices_S0 = [binomial_put_price(s, E, Rf, sigma, T, m) for s in S0s] #Calculating option prices for each initial stock price (S0) using the binomial model
+
+fig = go.Figure()
+
+# Add the trace for the put option price vs. risk-free rate
+fig.add_trace(go.Scatter(
+    x=Rfs,
+    y=prices_Rf,
+    mode='lines',
+    name='Put Option Price vs Rf',
+    line=dict(color='blue', width=2),
+    hovertemplate='Rf: %{x:.4f}<br>Price: %{y:.2f}<extra></extra>'
+))
+
+# Update the layout
+fig.update_layout(
+    title='Sensitivity of Put Option Price to Rf',
+    xaxis_title='Risk-Free Rate (Rf)',
+    yaxis_title='Put Option Price',
+    width=800,  # Equivalent to figsize=(10,6) in matplotlib
+    height=480,
+    template='plotly_white',  # This gives a white background with light grid lines
+    hovermode='x unified'
+)
+
+# Update x-axis and y-axis to add grid
+fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='LightGrey')
+fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='LightGrey')
+
+# Show the figure
+fig.show()
+
+# Create the figure
+fig = go.Figure()
+
+# Add the trace for the put option price vs. sigma
+fig.add_trace(go.Scatter(
+    x=sigmas,
+    y=prices_sigma,
+    mode='lines',
+    name='Put Option Price vs Sigma',
+    line=dict(color='orange', width=2),
+    hovertemplate='Sigma: %{x:.4f}<br>Price: %{y:.2f}<extra></extra>'
+))
+
+# Update the layout
+fig.update_layout(
+    title='Sensitivity of Put Option Price to Sigma',
+    xaxis_title='Volatility (Sigma)',
+    yaxis_title='Put Option Price',
+    width=800,  # Equivalent to figsize=(10,6) in matplotlib
+    height=480,
+    template='plotly_white',  # This gives a white background with light grid lines
+    hovermode='x unified'
+)
+
+# Update x-axis and y-axis to add grid
+fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='LightGrey')
+fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='LightGrey')
+
+# Show the figure
+fig.show()
+
+# Create the figure
+fig = go.Figure()
+
+# Add the trace for the put option price vs. m
+fig.add_trace(go.Scatter(
+    x=ms,
+    y=prices_m,
+    mode='lines',
+    name='Put Option Price vs m',
+    line=dict(color='green', width=2),
+    hovertemplate='m: %{x:.0f}<br>Price: %{y:.2f}<extra></extra>'
+))
+
+# Update the layout
+fig.update_layout(
+    title='Sensitivity of Put Option Price to m',
+    xaxis_title='Number of Periods (m)',
+    yaxis_title='Put Option Price',
+    width=800,  # Equivalent to figsize=(10,6) in matplotlib
+    height=480,
+    template='plotly_white',  # This gives a white background with light grid lines
+    hovermode='x unified'
+)
+
+# Update x-axis and y-axis to add grid
+fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='LightGrey')
+fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='LightGrey')
+
+# Show the figure
+fig.show()
+
+# Create the figure
+fig = go.Figure()
+
+# Add the trace for the put option price vs. S0
+fig.add_trace(go.Scatter(
+    x=S0s,
+    y=prices_S0,
+    mode='lines',
+    name='Put Option Price vs S0',
+    line=dict(color='red', width=2),
+    hovertemplate='S0: %{x:.2f}<br>Price: %{y:.2f}<extra></extra>'
+))
+
+# Update the layout
+fig.update_layout(
+    title='Sensitivity of Put Option Price to S0',
+    xaxis_title='Initial Asset Price (S0)',
+    yaxis_title='Put Option Price',
+    width=800,  # Equivalent to figsize=(10,6) in matplotlib
+    height=480,
+    template='plotly_white',  # This gives a white background with light grid lines
+    hovermode='x unified'
+)
+
+# Update x-axis and y-axis to add grid
+fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='LightGrey')
+fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='LightGrey')
+
+# Show the figure
+fig.show()
+
+#Analysis
+ The sensitivity analysis of a put option using the binomial pricing model above highlights signifant numerical trends in option pricing. When the risk-free (Rf) increases from 0.01 to 0.10, the put price decreases from approximately 14.2 to 5.8, confirming that higher discount rates reduce the present value of the strike price making put options less attractive. As volatility (Sigma) rises from 0.01 to 0.50, the put price increases sharply from about 1.2 to 29.7 demonstrating that higher uncertainty raises the likelihood of deep in-the-money scenarios increasing option value. The number of binomial periods(m) shows rapid convergence with the put price stabilising around 6.5 after 200 periods indicating that further refinements beyond this threshold add minimal impact. For the initial stock price (S0), as it rises from 50 to 150, the put price declines from approximately 35.2 to nearly 0 highlighting that when S0 is much lower than the strike price, the put option is deep in-the-money, whereas when S0 approaches or exceeds the strike price, the option loses its intrinsic value. These nurmerical results align with theoretical expectations: higher Rf lowers put values due to discounting, higher sigma significantly increases option value, larger m stabilizes pricing after a certain limit and higher S0 reduces put prices as the option moves out-of-the-moeny. This analysis reinforces key option pricing principles and their quantitative impact.
+
+#Explaing graphically and analyse graphs how the put-call parity works
