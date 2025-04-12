@@ -252,3 +252,190 @@ fig.show()
  The sensitivity analysis of a put option using the binomial pricing model above highlights signifant numerical trends in option pricing. When the risk-free (Rf) increases from 0.01 to 0.10, the put price decreases from approximately 14.2 to 5.8, confirming that higher discount rates reduce the present value of the strike price making put options less attractive. As volatility (Sigma) rises from 0.01 to 0.50, the put price increases sharply from about 1.2 to 29.7 demonstrating that higher uncertainty raises the likelihood of deep in-the-money scenarios increasing option value. The number of binomial periods(m) shows rapid convergence with the put price stabilising around 6.5 after 200 periods indicating that further refinements beyond this threshold add minimal impact. For the initial stock price (S0), as it rises from 50 to 150, the put price declines from approximately 35.2 to nearly 0 highlighting that when S0 is much lower than the strike price, the put option is deep in-the-money, whereas when S0 approaches or exceeds the strike price, the option loses its intrinsic value. These nurmerical results align with theoretical expectations: higher Rf lowers put values due to discounting, higher sigma significantly increases option value, larger m stabilizes pricing after a certain limit and higher S0 reduces put prices as the option moves out-of-the-moeny. This analysis reinforces key option pricing principles and their quantitative impact.
 
 #Explaing graphically and analyse graphs how the put-call parity works
+
+def binomial_call(S0, E, rf, sigma, T, m):
+
+    # 2a. Compute the time step and up/down factors
+    dt = T / m
+    u = math.exp(sigma * math.sqrt(dt))  # up factor
+    d = 1 / u                            # down factor
+    
+    # 2b. Compute the risk-neutral probability
+    p = (math.exp(rf * dt) - d) / (u - d)
+    
+    # 2c. Calculate asset prices at maturity and option payoffs
+    asset_prices = np.zeros(m + 1)
+    option_values = np.zeros(m + 1)
+    
+    for j in range(m + 1):
+        asset_price = S0 * (u ** j) * (d ** (m - j))
+        asset_prices[j] = asset_price
+        # Call payoff at maturity
+        option_values[j] = max(asset_price - E, 0)
+    
+    # 2d. Backward induction to get option value at time 0
+    for i in range(m, 0, -1):
+        for j in range(i):
+            option_values[j] = math.exp(-rf * dt) * (
+                p * option_values[j + 1] + (1 - p) * option_values[j]
+            )
+    
+    return option_values[0]
+
+#Define a function that calculates the present value of the strike
+# (this simulates buying a zero-coupon bond that pays K at time T)
+
+def present_value_strike(K, rf, T):
+
+    return K * math.exp(-rf * T)
+
+#Set baseline parameters
+S0 = 100       # Current stock price
+E = 100        # Strike price
+rf = 0.04      # Risk-free interest rate (4%)
+sigma = 0.20   # Volatility (20%)
+T = 2          # Time to maturity in years
+m = 200        # Number of binomial steps
+
+print("Step4 complete: Parameters set.")
+print(f"S0={S0}, E={E}, rf={rf}, sigma={sigma}, T={T}, m={m}")
+
+#Compute the binomial call and put prices using the functions
+call_price_binomial = binomial_call(S0, E, rf, sigma, T, m)
+put_price_binomial = binomial_put(S0, E, rf, sigma, T, m)
+
+print("Step 5 complete: Binomial call and put prices computed.")
+print(f"Binomial Call Price = {call_price_binomial:.4f}")
+print(f"Binomial Put Price  = {put_price_binomial:.4f}")
+
+#Compute call price using put-call parity:
+# C = P + S0 - PV(K)
+pv_k = present_value_strike(E, rf, T)
+call_price_parity = put_price_binomial + S0 - pv_k
+
+print("Step 6 complete: Calculated call price from put-call parity.")
+print(f"Call from Put-Call Parity = {call_price_parity:.4f}")
+print(f"Present Value of Strike   = {pv_k:.4f}")
+
+#Print the difference between the binomial call price and the parity-based call price
+difference = call_price_binomial - call_price_parity
+
+print("Step 7 complete: Comparison of call prices.")
+print(f"Difference (Binomial Call - Parity Call) = {difference:.6f}")
+
+# Generate stock prices around the strike price for visualization
+S_range = np.linspace(50, 150, 100)  # Range of stock prices
+put_payoffs = np.maximum(E - S_range, 0)  # Put payoff
+call_payoffs = np.maximum(S_range - E, 0)  # Call payoff
+parity_values = put_payoffs + S_range - present_value_strike(E, rf, T)  # Put-Call Parity Formula
+
+# Create the figure
+fig = go.Figure()
+
+# Add traces for Call Option Payoff, Put Option Payoff, and Put-Call Parity
+fig.add_trace(go.Scatter(x=S_range, y=call_payoffs, mode='lines', name='Call Option Payoff', 
+                         line=dict(dash='dash', color='blue')))
+fig.add_trace(go.Scatter(x=S_range, y=put_payoffs, mode='lines', name='Put Option Payoff', 
+                         line=dict(dash='dot', color='red')))
+fig.add_trace(go.Scatter(x=S_range, y=parity_values, mode='lines', name='Put-Call Parity (P + S - PV(K))', 
+                         line=dict(color='green')))
+
+# Add vertical line for Strike Price
+fig.add_vline(x=E, line_dash="dash", line_color="gray", annotation_text="Strike Price (K)", 
+              annotation_position="top right")
+
+# Update layout
+fig.update_layout(
+    title='Put-Call Parity: Payoff Comparison',
+    xaxis_title='Stock Price at Expiry',
+    yaxis_title='Option Payoff',
+    width=800,
+    height=480,
+    legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01),
+    hovermode="x unified"
+)
+
+# Update axes to include zero
+fig.update_xaxes(zeroline=True, zerolinewidth=2, zerolinecolor='LightGray', showgrid=True)
+fig.update_yaxes(zeroline=True, zerolinewidth=2, zerolinecolor='LightGray', showgrid=True)
+
+# Show the figure
+fig.show()
+
+#Analysis
+This graph visually represents the payoffs of:
+
+Call Option Payoff (dashed blue line)
+
+A call option is worthless when the stock price is below the strike price ((K)) but increases as the stock price rises. Put Option Payoff (dotted orange line)
+
+A put option is valuable when the stock price is below (K) (as it allows selling at a higher strike price) but is worthless above (K). Put-Call Parity Equation (solid black line)
+
+This line represents the right-hand side of the put-call parity equation ( P + S - PV(K) ), which should align with the call price. Key Takeaway: The fact that the put-call parity line crosses across the call option payoff demonstrates that the put-call parity equation appropriately represents the call's value.
+
+#Graphically compare Call Price from Binomial vs. Put-Call Parity
+plt.figure(figsize=(8, 5))
+plt.bar(["Binomial Call Price", "Put-Call Parity Call Price"],
+        [call_price_binomial, call_price_parity], color=["blue", "orange"])
+
+plt.ylabel("Call Option Price")
+plt.title("Comparison of Call Price from Binomial Model vs. Put-Call Parity")
+plt.grid(axis="y")
+plt.show()
+
+#Analysis
+This bar chart compares:
+
+Call price from the binomial model
+Call price computed via put-call parity
+If put-call parity holds perfectly, both values should be nearly identical.
+Conclusion:
+
+The parity relationship ensures that call and put options are priced appropriately in the market.
+Any deviation from this relationship indicates an arbitrage opportunity in which equal_weighted_index_dfrs could profit from mispricing.
+The graphs visually indicate that the put-call parity formula is valid over a range of stock values.
+
+#Write a function that uses the put-call parity to compute the price of a European call option
+# Define a function that calculates the present value of the strike price
+
+def present_value_strike(K, rf, T):
+
+    return K * math.exp(-rf * T)
+
+# Define the function to compute call price using put-call parity
+
+def call_price_parity(S0, E, rf, sigma, T, m):
+
+    put_price = binomial_put(S0, E, rf, sigma, T, m)  # Compute put price
+    pv_k = present_value_strike(E, rf, T)  # Compute PV of strike price
+    call_price = put_price + S0 - pv_k  # Put-Call Parity Formula
+    
+    return call_price
+
+# Set baseline parameters
+S0 = 100       # Current stock price
+E = 100        # Strike price
+rf = 0.04      # Risk-free interest rate (4%)
+sigma = 0.20   # Volatility (20%)
+T = 2          # Time to maturity in years
+m = 200        # Number of binomial steps
+
+# Compute call prices using both methods
+call_price_from_parity = call_price_parity(S0, E, rf, sigma, T, m)
+call_price_from_binomial = binomial_call(S0, E, rf, sigma, T, m)
+
+print("Step 4 complete: Call prices computed.")
+print(f"Call Price from Put-Call Parity = {call_price_from_parity:.6f}")
+print(f"Call Price from Binomial Model  = {call_price_from_binomial:.6f}")
+
+# Verify the accuracy of put-call parity by comparing results
+difference = abs(call_price_from_binomial - call_price_from_parity)
+
+print("Step 5 complete: Comparison of call prices.")
+print(f"Difference (Binomial Call - Parity Call) = {difference:.6f}")
+
+# Check if the difference is within the 6-decimal tolerance
+if difference < 1e-6:
+    print(" Put-Call Parity holds! The two prices match up to 6 decimals.")
+else:
+    print(" Discrepancy detected! Possible numerical errors or arbitrage.")
