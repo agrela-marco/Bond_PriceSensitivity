@@ -6,3 +6,7 @@ The Fama-French 3-factor model reveals that industry portfolios are subject to m
 According to the findings, none of the industry portfolios provide a positive and statistically significant alpha. All industries, with the exception of "Non-classifiable," exhibit a negative and statistically significant alpha. The industries substantially underperformed according to the predictions of the Fama-French model.
 
 Task 2:
+
+
+Task 3:
+I used a quarterly long short strategy where I invested  £150 into the industry with the best 3 months returns and shorted £150 from the industry with the worst 3 months returns. During the full data period, this was rebalanced on a quarterly basis. At the end of the development, the strategy had a total value of £ 6721.58 implying huge loss. When comparing the average annual return, around -14.18% , the momentum-based approach actually underperform in this period. On the other hand, this brings to light the dangers of systematic trading strategies, specifically because markets may indeed turn or hold against trend over the long run.
