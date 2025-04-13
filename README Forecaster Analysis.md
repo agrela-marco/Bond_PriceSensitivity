@@ -19,3 +19,7 @@ The p-value for forecast changes is 0.0019, which suggests a statistically signi
 In summary, while forecasts offer some useful information, they often miss key influences on housing trends. Improving forecasting methods by including more economic indicators, better statistical models, or machine learning could lead to more reliable predictions. This would help businesses, policymakers, and investors make smarter decisions in the housing market.
 
 Task 3:
+Our regression analysis examines whether changes in housing starts can predict S&P 500 returns.
+The model finds a statistically significant positive relationship, with a 1% increase in housing starts leading to a 0.1353% rise in the S&P 500. The p-value (0.001) confirms this relationship is unlikely due to chance.However, the R-squared value (20.1%) indicates that housing starts explain only a small portion of S&P 500 fluctuations, meaning other factors significantly impact stock returns. While the forecasted change in housing starts provides some predictive power, it should not be the sole factor for forecasting S&P 500 performance.
+
+Task 4:
