@@ -7,3 +7,9 @@ Although there aren't many perfectly accurate forecasts in the dataset, it's not
 
 Task 2: 
 Using the same datasets in the previous task 
+
+Section A)
+#The standard deviation of forecast errors across industries is 0.0935, meaning forecasts are not always spot on but fairly close. Industry 1 has an error of 0.0943, Industry 2 is 0.0953, and Industry 3 is 0.0901. The differences are small, but some industries seem to make slightly better predictions than others.
+Looking at the graph, we can see that forecasts often miss the actual values—sometimes too high, sometimes too low. The errors change over time, showing that predictions are not always stable. To improve accuracy, we might need better forecasting methods, using more data or improved models.
+
+Section B)
