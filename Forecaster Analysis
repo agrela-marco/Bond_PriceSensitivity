@@ -101,7 +101,7 @@ fig.update_layout(
 # Show chart
 fig.show()
 
-#Graph Analysis
+Task 2 A)
 
 #Filter data of the Years for group 4 
 QMD_group4 = merged_data.loc["2003Q1":"2015Q4"]
@@ -226,9 +226,7 @@ fig.update_layout(
 # Show the interactive chart
 fig.show()
 
-#Graph Analysis
-#The standard deviation of forecast errors across industries is 0.0935, meaning forecasts are not always spot on but fairly close. Industry 1 has an error of 0.0943, Industry 2 is 0.0953, and Industry 3 is 0.0901. The differences are small, but some industries seem to make slightly better predictions than others.
-Looking at the graph, we can see that forecasts often miss the actual values—sometimes too high, sometimes too low. The errors change over time, showing that predictions are not always stable. To improve accuracy, we might need better forecasting methods, using more data or improved models.
+Section B)
 
 #Regression Analysis on mean forecast changes
 ##ompute the mean forecasted
