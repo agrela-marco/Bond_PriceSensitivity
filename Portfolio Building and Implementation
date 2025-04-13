@@ -530,10 +530,3 @@ num_years_ls = num_months_ls / 12
 avg_annual_return_ls = (final_value_ls / total_invested_ls) ** (1 / num_years_ls) - 1
 
 print("Average Annual Return of Long-Short Strategy: {:.2%}".format(avg_annual_return_ls))
-
-#Analysis
-I used a quarterly long short strategy where I invested  £150 into the industry with the best 3 months returns and shorted £150 from the industry with the worst 3 months returns. During the full data period, this was rebalanced on a quarterly basis. At the end of the development, the strategy had a total value of £ 6721.58 implying huge loss. When comparing the average annual return, around -14.18% , the momentum-based approach actually underperform in this period. On the other hand, this brings to light the dangers of systematic trading strategies, specifically because markets may indeed turn or hold against trend over the long run.
-
-
-
-
