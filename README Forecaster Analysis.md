@@ -13,3 +13,9 @@ Section A)
 Looking at the graph, we can see that forecasts often miss the actual values—sometimes too high, sometimes too low. The errors change over time, showing that predictions are not always stable. To improve accuracy, we might need better forecasting methods, using more data or improved models.
 
 Section B)
+#This analysis examines how well forecasted changes align with actual changes in housing starts. The results show that when the forecasted housing change increases by 1 unit, actual housing starts rise by about 0.50 units. This suggests that forecasts do follow real market trends to some degree, but they do not fully capture actual movements.
+The R-squared value is 0.180, meaning that only 18% of the changes in real housing starts can be explained by changes in forecasts. This is relatively low, indicating that many other factors influence housing starts. Economic conditions, government policies, interest rates, and unexpected events all play a major role and may not be fully reflected in these forecasts.
+The p-value for forecast changes is 0.0019, which suggests a statistically significant relationship between forecasted and actual changes. However, the connection is not particularly strong, meaning forecasts provide insight but are not always accurate.
+In summary, while forecasts offer some useful information, they often miss key influences on housing trends. Improving forecasting methods by including more economic indicators, better statistical models, or machine learning could lead to more reliable predictions. This would help businesses, policymakers, and investors make smarter decisions in the housing market.
+
+Task 3:
