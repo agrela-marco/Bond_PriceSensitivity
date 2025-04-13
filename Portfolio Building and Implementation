@@ -39,6 +39,8 @@ Q3T1 = Q3T1[~Q3T1['SICCD'].between(100, 999)]
 Q3T1 = Q3T1[~Q3T1['SICCD'].between(9100, 9729)] 
 Q3T1 = Q3T1[~Q3T1['SICCD'].between(9900, 9999)]
 
+Task 1: 
+
 # Classify industries
 def classify_industry(sic_code):
     if 1000 <= sic_code <= 1499:
@@ -279,10 +281,7 @@ regression_df = regression_df.sort_values(by='Industry Code')
 regression_df = regression_df.style.map(color_light_red_green, subset=['Alpha (Intercept)', 'Beta (Mkt-RF)', 'Beta (SMB)', 'Beta (HML)', 'R²'])
 regression_df
 
-#Analysis
-The Fama-French 3-factor model reveals that industry portfolios are subject to market risk (Mkt-RF), size risk (SMB), and value risk (HML). The beta for each component indicate the extent of exposure. The Mining sector has a Mkt-RF beta of 0.000066, which is reflecting sensitivity to the market fluctuations while an SMB beta of 0.000018, indicating little sensitivity to the size premium, and an HML beta of -0.000041, implying a modest negative connection with the value premium.
-
-According to the findings, none of the industry portfolios provide a positive and statistically significant alpha. All industries, with the exception of "Non-classifiable," exhibit a negative and statistically significant alpha. The industries substantially underperformed according to the predictions of the Fama-French model.
+Task 2
 
 #Distributing capital across industries
 start_date = pd.to_datetime('2003-01-01').date()
