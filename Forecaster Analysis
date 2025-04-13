@@ -418,6 +418,3 @@ if p_value < alpha:
     print("There is a significant difference between forecasts and actual results.")
 else:
     print("There is no significant difference between forecasts and actual results.")
-
-#Analysis
-#In the first column, the forecaster ID'd 535 appeared 3 times with one of the forecasts MAE being 0 as he had a 100% forecast being the best forecaster in the time 2003-2015 time frame. The second bar chart shows the worst 10 forecasts, the forecaster number 426 appears 3 times in the list of the worst 10 forecasters, being the forecaster with the biggest MAE between forecasters. The range of values from the worst 10, varying between 0.36 and 0.64 is much shorter than the top 10 as in the top which varied from 0 to 0.000645.
