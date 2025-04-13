@@ -316,10 +316,7 @@ model = sm.OLS(Y, X).fit()
 # Print summary
 print(model.summary())
 
-#Analysis
-Our regression analysis examines whether changes in housing starts can predict S&P 500 returns.
-The model finds a statistically significant positive relationship, with a 1% increase in housing starts leading to a 0.1353% rise in the S&P 500. The p-value (0.001) confirms this relationship is unlikely due to chance.However, the R-squared value (20.1%) indicates that housing starts explain only a small portion of S&P 500 fluctuations, meaning other factors significantly impact stock returns. While the forecasted change in housing starts provides some predictive power, it should not be the sole factor for forecasting S&P 500 performance.
-
+Task 4
 #Perform Individual level analysis on a forecaster basis
 
 # Create a copy of the data
